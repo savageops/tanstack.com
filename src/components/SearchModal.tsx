@@ -28,6 +28,7 @@ import {
   getStoredFrameworkPreference,
   usePersistFrameworkPreference,
 } from './FrameworkSelect'
+import synonyms from '~/search/synonyms.json'
 
 /**
  * Safely decode HTML entities without using innerHTML.
@@ -153,6 +154,27 @@ const searchClient = liteClient(
   'FQ0DQ6MA3C',
   '10c34d6a5c89f6048cf644d601e65172',
 )
+
+function rewriteSearchQuery(query: string): string {
+  const trimmed = query.trim()
+  if (trimmed.length < 2) return query
+
+  const tokens = trimmed.toLowerCase().split(/\s+/)
+  const expanded = new Set(tokens)
+
+  for (const token of tokens) {
+    const expansions = synonyms[token as keyof typeof synonyms]
+    if (expansions) {
+      for (const term of expansions.slice(0, 2)) {
+        if (expanded.size < tokens.length + 3) {
+          expanded.add(term)
+        }
+      }
+    }
+  }
+
+  return Array.from(expanded).join(' ')
+}
 
 // Context to share filter state between components
 const SearchFiltersContext = React.createContext<{
@@ -864,6 +886,9 @@ export function SearchModal() {
                     reset: 'p-1 opacity-50 hover:opacity-100',
                   }}
                   resetIconComponent={resetIconComponent}
+                  queryHook={(query, search) => {
+                    search(rewriteSearchQuery(query))
+                  }}
                   // eslint-disable-next-line jsx-a11y/no-autofocus
                   autoFocus
                 />
